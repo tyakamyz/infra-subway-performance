@@ -152,6 +152,123 @@ and R.record_symbol = 'O';
 ### 2단계 - 인덱스 설계
 
 1. 인덱스 적용해보기 실습을 진행해본 과정을 공유해주세요
+```sql
+/* 1. Coding as a Hobby 와 같은 결과를 반환하세요. */
+select hobby, concat(count(*) / (select count(*) from programmer) * 100,' %') as result
+from programmer
+group by hobby;
+```
+![img.png](./performance/step4/1_execution_plan.png)
+- 0.031 sec / 0.000 sec
+- programmer
+    - id: PK 지정
+    - hobby: index 생성
+
+```sql
+/* 2. 프로그래머별로 해당하는 병원 이름을 반환하세요. (covid.id, hospital.name) */
+select C.id, H.name
+from covid C, hospital H
+where C.hospital_id = H.id;
+```
+![img.png](./performance/step4/2_execution_plan.png)
+- 0.015 sec / 0.000 sec
+- covid
+    - id: PK 지정
+    - hospital_id: index 생성
+- hospital
+    - id: PK 지정
+    - name: unique 지정
+
+```sql
+/* 3. 프로그래밍이 취미인 학생 혹은 주니어(0-2년)들이 다닌 병원 이름을 반환하고 user.id 기준으로 정렬하세요. 
+(covid.id, hospital.name, user.Hobby, user.DevType, user.YearsCoding) */
+select CH.id, CH.name, P.hobby, P.dev_type, P.Years_coding
+from 
+    (
+        select C.id, C.programmer_id, H.name 
+        from covid C, hospital H 
+        where C.hospital_id = H.id
+    ) CH , 
+    (
+        select P.id, P.hobby, P.dev_type, P.Years_coding 
+        from programmer P 
+        where P.hobby = 'Yes' 
+        and (P.student like 'Yes%' or P.years_coding = '0-2 years')
+    ) P
+where CH.programmer_id = P.id
+order by P.id;
+```
+![img.png](./performance/step4/3_execution_plan.png)
+- 0.015 sec / 0.000 sec
+- covid
+    - id: PK 지정 (이전 sql 미션에서 지정)
+    - programmer_id: unique 지정
+- hospital
+    - id: PK 지정 (이전 sql 미션에서 지정)
+    - name: unique 지정 (이전 sql 미션에서 지정)
+- programmer
+    - id: PK 지정 (이전 sql 미션에 서 지정)
+    - hobby: index 생성 (이전 sql 미션에서 지정)
+
+```sql
+/* 4. 서울대병원에 다닌 20대 India 환자들을 병원에 머문 기간별로 집계하세요. (covid.Stay) */
+select C.stay, count(*)
+from covid C, hospital H, programmer P
+where C.hospital_id = H.id
+and C.programmer_id = P.id
+and H.name = '서울대병원'
+and P.country = 'India'
+group by C.stay;
+```
+![img.png](./performance/step4/4_execution_plan.png)
+- 0.047 sec / 0.000 sec
+- covid
+    - id: PK 지정 (이전 sql 미션에서 지정)
+    - hospital_id: index 생성 (이전 sql 미션에 서 지정)
+    - programmer_id: unique 지정 (이전 sql 미션에 서 지정)
+- hospital
+    - id: PK 지정 (이전 sql 미션에서 지정)
+    - name: unique 지정 (이전 sql 미션에서 지정)
+- programmer
+    - id: PK 지정 (이전 sql 미션에 서 지정)
+
+```sql
+/* 5. 서울대병원에 다닌 30대 환자들을 운동 횟수별로 집계하세요. (user.Exercise) */
+select P.exercise, count(*)
+from covid C,
+     programmer P,
+     (
+         select H.id, H.name 
+         from hospital H 
+         where H.name = '서울대병원'
+     ) H,
+     (
+         select M.id 
+         from member M 
+         where M.age between 30 and 39
+     ) M
+where C.hospital_id = H.id
+  and C.programmer_id = P.id
+  and P.id = M.id
+group by P.exercise;
+```
+![img.png](./performance/step4/5_execution_plan.png)
+- 0.047 sec / 0.000 sec
+- covid
+    - id: PK 지정 (이전 sql 미션에서 지정)
+    - hospital_id: index 생성 (이전 sql 미션에 서 지정)
+    - programmer_id: unique 지정 (이전 sql 미션에 서 지정)
+- programmer
+    - id: PK 지정 (이전 sql 미션에 서 지정)
+- hospital
+    - id: PK 지정 (이전 sql 미션에서 지정)
+    - name: unique 지정 (이전 sql 미션에서 지정)
+- member
+    - id: PK 지정 (이전 sql 미션에서 지정)
+    - age: index 생성 (이전 sql 미션에서 지정)
+    
+#### 1~6 최종 결과 캡처
+![img.png](./performance/step4/result.png)
 
 ---
 
